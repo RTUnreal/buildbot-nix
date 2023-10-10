@@ -30,10 +30,47 @@
               };
             in
             examplesFor "x86_64-linux" // examplesFor "aarch64-linux";
+
+          overlays.default =
+            let
+              overrides = {
+                packageOverrides = final: _prev: {
+                  buildbot-gitea = final.callPackage
+                    ({ buildPythonPackage, fetchPypi }:
+                      buildPythonPackage rec {
+                        pname = "buildbot-gitea";
+                        version = "1.7.2";
+                        format = "setuptools";
+
+                        src = fetchPypi {
+                          inherit pname version format;
+                          hash = "sha256-zfHq7xmvKKVl+OuEXvsQg2T23gJGbGl3rKeTkc/oFG0=";
+                        };
+                        nativeBuildInputs = with final; [
+                          setuptools
+                        ];
+                        doCheck = false;
+                      })
+                    { };
+                };
+              };
+            in
+            _self: super: {
+              python311 = super.python311.override overrides;
+            };
         };
         perSystem = { self', pkgs, system, ... }: {
-          packages.default = pkgs.mkShell {
+          _module.args.pkgs = import inputs.nixpkgs {
+            inherit system;
+            overlays = [
+              self.overlays.default
+            ];
+            config = { };
+          };
+
+          devShells.default = pkgs.mkShell {
             packages = [
+              (pkgs.python311.withPackages (pp: [ pp.buildbot-gitea ]))
               pkgs.bashInteractive
             ];
           };
